@@ -1,0 +1,59 @@
+name: sync-upstream
+
+on:
+  schedule:
+    # Every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Don't run on the upstream itself if this workflow ever ends up there
+    if: github.repository_owner != 'router-for-me'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync main + tags from upstream
+        id: sync
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/router-for-me/CLIProxyAPI.git 2>/dev/null || true
+
+          BEFORE_TAGS="$(git tag | sort)"
+
+          git fetch upstream main --tags --force
+          # Fast-forward main from upstream
+          git checkout main
+          git merge --ff-only upstream/main || git reset --hard upstream/main
+          git push origin main
+
+          # Push all tags to fork
+          git push origin --tags --force
+
+          AFTER_TAGS="$(git tag | sort)"
+          NEW_TAGS="$(comm -13 <(echo "$BEFORE_TAGS") <(echo "$AFTER_TAGS") | tr '\n' ' ' | sed 's/ *$//')"
+          echo "new_tags=${NEW_TAGS}" >> "$GITHUB_OUTPUT"
+          echo "Synced. New tags: ${NEW_TAGS:-(none)}"
+
+      - name: Dispatch termux-release for each new tag
+        if: steps.sync.outputs.new_tags != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          for TAG in ${{ steps.sync.outputs.new_tags }}; do
+            echo "Dispatching termux-release for $TAG"
+            gh workflow run termux-release.yml --ref "$TAG" -f ref="$TAG"
+          done
