@@ -36,7 +36,12 @@ jobs:
         id: ver
         run: |
           set -euo pipefail
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+          INPUT_REF="${{ inputs.ref }}"
+          if [[ -n "$INPUT_REF" && "$INPUT_REF" == v* ]]; then
+            # Dispatched with a tag ref (e.g. from sync-upstream)
+            VERSION="$INPUT_REF"
+            KIND="tag"
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             VERSION="${GITHUB_REF_NAME}"
             KIND="tag"
           else
