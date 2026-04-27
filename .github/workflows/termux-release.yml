@@ -19,15 +19,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          check-latest: true
+
       - name: Build for Termux aarch64
+        env:
+          GOOS: android
+          GOARCH: arm64
+          CGO_ENABLED: '0'
         run: |
-          docker run --rm -v $(pwd):/work -w /work termux/package-builder bash -c "
-            apt update && apt install -y golang
-            export GOOS=android
-            export GOARCH=arm64
-            go build -ldflags=\"-s -w -X 'main.Version=${GITHUB_REF_NAME}' -X 'main.Commit=$(git rev-parse --short HEAD)' -X 'main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)'\" -o CLIProxyAPI-termux-aarch64 ./cmd/server
-            tar -czf CLIProxyAPI-termux-aarch64.tar.gz CLIProxyAPI-termux-aarch64 LICENSE README.md config.example.yaml
-          "
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          COMMIT="$(git rev-parse --short HEAD)"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          go build \
+            -ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Commit=${COMMIT}' -X 'main.BuildDate=${BUILD_DATE}'" \
+            -o CLIProxyAPI-termux-aarch64 \
+            ./cmd/server
+          tar -czf CLIProxyAPI-termux-aarch64.tar.gz \
+            CLIProxyAPI-termux-aarch64 LICENSE README.md config.example.yaml
 
       - name: Upload Termux Asset
         uses: softprops/action-gh-release@v1
