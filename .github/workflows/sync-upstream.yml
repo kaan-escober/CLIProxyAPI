@@ -55,5 +55,5 @@ jobs:
           set -euo pipefail
           for TAG in ${{ steps.sync.outputs.new_tags }}; do
             echo "Dispatching termux-release for $TAG"
-            gh workflow run termux-release.yml --ref "$TAG" -f ref="$TAG"
+            gh workflow run termux-release.yml -R "$GITHUB_REPOSITORY" --ref "$TAG" -f ref="$TAG"
           done
