@@ -50,3 +50,9 @@ _bmad-output/*
 # macOS
 .DS_Store
 ._*
+
+# Termux release artifacts
+CLIProxyAPI-termux-aarch64
+CLIProxyAPI-termux-aarch64.tar.gz
+
+# Fork-specific workflow
